@@ -1,3 +1,9 @@
 # don't change line endings on windows
 # the linter chokes and I've seen it break tests before
 * text eol=lf 
+# binary files: never touch line endings
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+*.wasm binary
