@@ -111,6 +111,32 @@ const unblocker = Unblocker({
 // Static files. Each is read with a literal path so Vercel bundles it.
 // ---------------------------------------------------------------------------
 const JS = "application/javascript; charset=utf-8";
+
+// Ultraviolet login fix: cookies set by a page's own response (like a login
+// page's anti-forgery cookie) were saved in the background and left out of
+// that page, so its script couldn't read them until a reload. Logins that copy
+// that cookie into the form were then refused as "unauthorized". The worker
+// now waits for the cookies to be saved and gives the page the fresh list.
+function patchUvWorker(code) {
+  const fixes = [
+    [
+      'Promise.resolve(t.cookie.setCookies(r.headers["set-cookie"],w,t.meta))',
+      'Promise.resolve(await t.cookie.setCookies(r.headers["set-cookie"],w,t.meta))',
+    ],
+    [
+      "t.cookie.serialize(f,t.meta,!0)",
+      "t.cookie.serialize((await t.cookie.getCookies(w))||[],t.meta,!0)",
+    ],
+  ];
+  for (const [from] of fixes) {
+    if (!code.includes(from)) {
+      console.warn("Ultraviolet cookie fix not applied (new version?)");
+      return code;
+    }
+  }
+  for (const [from, to] of fixes) code = code.split(from).join(to);
+  return code;
+}
 const ASSETS = {
   "/scram/scramjet.all.js": [
     JS,
@@ -252,14 +278,17 @@ const ASSETS = {
   ],
   "/uv/uv.sw.js": [
     JS,
-    fs.readFileSync(
-      path.join(
-        __dirname,
-        "node_modules",
-        "@titaniumnetwork-dev",
-        "ultraviolet",
-        "dist",
-        "uv.sw.js"
+    patchUvWorker(
+      fs.readFileSync(
+        path.join(
+          __dirname,
+          "node_modules",
+          "@titaniumnetwork-dev",
+          "ultraviolet",
+          "dist",
+          "uv.sw.js"
+        ),
+        "utf8"
       )
     ),
   ],
@@ -285,6 +314,10 @@ const ASSETS = {
     fs.readFileSync(
       path.join(__dirname, "lib", "client", "unblocker-client.js")
     ),
+  ],
+  "/public_suffix_list.dat": [
+    "text/plain; charset=utf-8",
+    fs.readFileSync(path.join(__dirname, "static", "public_suffix_list.dat")),
   ],
   "/fonts/inter.woff2": [
     "font/woff2",
@@ -334,6 +367,7 @@ const NO_CACHE = new Set([
   "/manifest.webmanifest",
   "/baremux/worker.js",
   "/baremod/index.mjs",
+  "/uv/uv.sw.js",
 ]);
 
 // ---------------------------------------------------------------------------

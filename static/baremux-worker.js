@@ -71,6 +71,39 @@ function slipRestore(handler) {
   return slipRestoring;
 }
 
+// Scramjet downloads the Public Suffix List (~250 KB) from publicsuffix.org
+// the first time a login redirects between subdomains (login.site.com ->
+// app.site.com). If that download was slow or failed, the login crashed with
+// an error page. A copy ships with Slipstream and is answered from here.
+const SLIP_PSL = "https://publicsuffix.org/list/public_suffix_list.dat";
+let slipPslBody = null;
+
+async function slipAnswerPsl(port) {
+  try {
+    if (!slipPslBody) {
+      const res = await fetch("/public_suffix_list.dat");
+      if (!res.ok) throw new Error("status " + res.status);
+      slipPslBody = await res.text();
+    }
+    const body = new TextEncoder().encode(slipPslBody).buffer;
+    port.postMessage(
+      {
+        type: "fetch",
+        fetch: {
+          body,
+          headers: { "content-type": "text/plain; charset=utf-8" },
+          status: 200,
+          statusText: "OK",
+        },
+      },
+      [body]
+    );
+    return true;
+  } catch (e) {
+    return false; // let the normal request try instead
+  }
+}
+
 const slipOriginalConnect = self.onconnect;
 self.onconnect = (event) => {
   const port = event.ports[0];
@@ -78,6 +111,15 @@ self.onconnect = (event) => {
   const handler = port.onmessage;
   port.onmessage = async (e) => {
     const msg = e.data && e.data.message;
+    if (
+      msg &&
+      msg.type === "fetch" &&
+      msg.fetch &&
+      msg.fetch.remote === SLIP_PSL &&
+      (await slipAnswerPsl(e.data.port))
+    ) {
+      return;
+    }
     if (msg && msg.type === "set") {
       slipIsSet = true;
       // a transport handed over as a MessagePort can't be stored

@@ -861,6 +861,8 @@ const BLOCK_PAGES = [
   /^https?:\/\/(html\.)?duckduckgo\.com\/static-pages\/home-error\//i,
 ];
 let lastQuery = "";
+// Google's "This browser or app may not be secure" page
+const GOOGLE_REJECTED = /^https:\/\/accounts\.google\.com\/(v3\/)?signin\/rejected/i;
 
 function engineBlockedRecently(engine) {
   try {
@@ -1070,6 +1072,9 @@ function syncTab(tab) {
     const win = tab.frame.contentWindow;
     const url = realUrl(win.location);
     if (url && searchBlocked(tab, url)) return false;
+    if (url && url !== tab.url && GOOGLE_REJECTED.test(url)) {
+      toast("Google blocks sign-in through proxies like this one, so Google accounts can't log in here");
+    }
     if (url && url !== tab.url) {
       tab.url = url;
       changed = true;
