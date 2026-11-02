@@ -9,6 +9,20 @@ fastest web proxies available.
 [![Node.js CI](https://github.com/nfriedly/node-unblocker/actions/workflows/node.js.yml/badge.svg)](https://github.com/nfriedly/node-unblocker/actions/workflows/node.js.yml)
 [![npm-version](https://img.shields.io/npm/v/unblocker.svg)](https://www.npmjs.com/package/unblocker)
 
+## Deploy on Vercel
+
+1. Go to https://vercel.com/new and import this GitHub repo.
+2. Leave all settings as they are and click **Deploy**.
+3. Open your `*.vercel.app` link. Type a URL or search and press **Go**.
+
+Run it locally with `npm install` then `npm start` (opens on http://localhost:8080).
+
+Files used for this: `app.js` (the proxy + start page server), `api/index.js` (Vercel entry),
+`public/index.html` (start page), `vercel.json` (routing).
+
+Limits on Vercel: no websockets (live chat, some games won't work), each request can run at most 60 seconds,
+and many big sites (Google, YouTube, Discord) block or break through web proxies.
+
 ### The magic part
 
 The script uses "pretty" urls which, besides looking pretty, allow links with relative paths

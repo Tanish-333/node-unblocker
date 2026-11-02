@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Unblocker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%234f46e5'/><path d='M30 50h40M50 30v40' stroke='white' stroke-width='9' stroke-linecap='round'/></svg>">
+<style>
+  :root {
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --text: #15161a;
+    --muted: #686b78;
+    --border: #e2e4ec;
+    --accent: #4f46e5;
+    --accent-text: #ffffff;
+    --chip: #eef0f6;
+    --warn-bg: #fff7e6;
+    --warn-text: #7a4b00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1015;
+      --card: #181a21;
+      --text: #eceef4;
+      --muted: #9a9daa;
+      --border: #2a2d38;
+      --accent: #7c74ff;
+      --accent-text: #ffffff;
+      --chip: #22252f;
+      --warn-bg: #2b2414;
+      --warn-text: #f1cf8a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12vh 16px 32px;
+  }
+  main { width: 100%; max-width: 640px; }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+    text-align: center;
+  }
+  .sub { margin: 0 0 28px; text-align: center; color: var(--muted); }
+  form {
+    display: flex;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+  }
+  form:focus-within { border-color: var(--accent); }
+  input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 17px;
+    padding: 10px 12px;
+  }
+  button {
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font: 600 15px system-ui, sans-serif;
+    padding: 0 20px;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    justify-content: center;
+    margin: 14px 0 28px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .options label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  select {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px 6px;
+    font-size: 14px;
+  }
+  h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+  h2 button {
+    background: none;
+    color: var(--muted);
+    padding: 0;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .tile {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tile small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  .tile:hover { border-color: var(--accent); }
+  .note {
+    background: var(--warn-bg);
+    color: var(--warn-text);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .note strong { display: block; margin-bottom: 2px; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
+  footer a { color: var(--muted); }
+  @media (max-width: 480px) {
+    body { padding-top: 8vh; }
+    h1 { font-size: 26px; }
+    button { padding: 0 14px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Unblocker</h1>
+  <p class="sub">Browse any website through this server.</p>
+
+  <form id="go" autocomplete="off">
+    <input id="q" type="text" placeholder="Enter a URL or search" autofocus aria-label="URL or search">
+    <button type="submit">Go</button>
+  </form>
+
+  <div class="options">
+    <label>Search with
+      <select id="engine">
+        <option value="https://html.duckduckgo.com/html/?q=">DuckDuckGo</option>
+        <option value="https://www.bing.com/search?q=">Bing</option>
+        <option value="https://search.brave.com/search?q=">Brave</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="newtab"> Open in new tab</label>
+  </div>
+
+  <h2>Quick links</h2>
+  <div class="grid" id="quick"></div>
+
+  <div id="recentWrap" hidden>
+    <h2>Recent <button type="button" id="clear">Clear</button></h2>
+    <div class="grid" id="recent"></div>
+  </div>
+
+  <div class="note">
+    <strong>Heads up</strong>
+    This is a web proxy, not a full VPN. It only covers pages opened here, not other apps.
+    Simple sites work best. Google, YouTube, Discord, logins and video calls often break.
+    Don't enter passwords on proxied sites: the server can see that traffic.
+  </div>
+
+  <footer>Powered by <a href="https://github.com/nfriedly/node-unblocker" target="_blank" rel="noopener">node-unblocker</a> (AGPL-3.0)</footer>
+</main>
+
+<script>
+(function () {
+  var PREFIX = "/proxy/";
+  var QUICK = [
+    ["Wikipedia", "https://en.wikipedia.org/"],
+    ["DuckDuckGo", "https://html.duckduckgo.com/html/"],
+    ["Reddit", "https://old.reddit.com/"],
+    ["Hacker News", "https://news.ycombinator.com/"],
+    ["GitHub", "https://github.com/"],
+    ["BBC News", "https://www.bbc.com/news"]
+  ];
+
+  function store(key, value) {
+    try {
+      if (value === undefined) return JSON.parse(localStorage.getItem(key));
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) { return null; }
+  }
+
+  // Turn what the user typed into a full URL (or a search URL).
+  function toUrl(text) {
+    text = text.trim();
+    if (!text) return null;
+    if (/^https?:\/\//i.test(text)) return text;
+    // looks like a domain: has a dot, no spaces
+    if (!/\s/.test(text) && /^[^\s\/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(text)) {
+      return "https://" + text;
+    }
+    return document.getElementById("engine").value + encodeURIComponent(text);
+  }
+
+  function open(url) {
+    var host = "";
+    try { host = new URL(url).hostname; } catch (e) {}
+    if (host) {
+      var recent = (store("recent") || []).filter(function (r) { return r[1] !== url; });
+      recent.unshift([host.replace(/^www\./, ""), url]);
+      store("recent", recent.slice(0, 8));
+    }
+    var target = PREFIX + url;
+    if (document.getElementById("newtab").checked) {
+      window.open(target, "_blank", "noopener");
+      renderRecent();
+    } else {
+      location.href = target;
+    }
+  }
+
+  function tile(name, url) {
+    var a = document.createElement("a");
+    a.className = "tile";
+    a.href = PREFIX + url;
+    a.textContent = name;
+    var s = document.createElement("small");
+    s.textContent = url.replace(/^https?:\/\//, "");
+    a.appendChild(s);
+    a.addEventListener("click", function (e) { e.preventDefault(); open(url); });
+    return a;
+  }
+
+  function renderRecent() {
+    var recent = store("recent") || [];
+    var box = document.getElementById("recent");
+    box.textContent = "";
+    recent.forEach(function (r) { box.appendChild(tile(r[0], r[1])); });
+    document.getElementById("recentWrap").hidden = recent.length === 0;
+  }
+
+  var quick = document.getElementById("quick");
+  QUICK.forEach(function (q) { quick.appendChild(tile(q[0], q[1])); });
+
+  var engine = document.getElementById("engine");
+  var newtab = document.getElementById("newtab");
+  if (store("engine")) engine.value = store("engine");
+  newtab.checked = !!store("newtab");
+  engine.addEventListener("change", function () { store("engine", engine.value); });
+  newtab.addEventListener("change", function () { store("newtab", newtab.checked); });
+
+  document.getElementById("clear").addEventListener("click", function () {
+    store("recent", []);
+    renderRecent();
+  });
+
+  document.getElementById("go").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var url = toUrl(document.getElementById("q").value);
+    if (url) open(url);
+  });
+
+  renderRecent();
+})();
+</script>
+</body>
+</html>

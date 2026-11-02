@@ -33,6 +33,7 @@
     "ws": "^8.17.0"
   },
   "scripts": {
+    "start": "node server.js",
     "watch": "nodemon --watch ./ --ignore ./examples --ext js,html,xhtml,json --exec npm run test",
     "test": "npm run lint && npm run test-spec",
     "pre-commit": "npm run autofix && npm test",
