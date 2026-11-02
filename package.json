@@ -1,18 +1,22 @@
 {
-  "name": "unblocker",
-  "description": "Web proxy for evading internet censorship & general-purpose library for rewriting remote websites.",
+  "name": "slipstream",
+  "description": "Slipstream: a fast web proxy (Scramjet + Ultraviolet + node-unblocker).",
   "author": "Nathan Friedly - http://nfriedly.com",
   "version": "2.3.2",
   "repository": "git://github.com/nfriedly/node-unblocker.git",
   "engines": {
-    "node": ">=16.17"
+    "node": "22.x"
   },
   "dependencies": {
     "@mercuryworkshop/bare-as-module3": "^2.2.5",
     "@mercuryworkshop/bare-mux": "^2.1.9",
+    "@mercuryworkshop/epoxy-transport": "^2.1.29",
+    "@mercuryworkshop/scramjet": "^1.1.0",
+    "@mercuryworkshop/wisp-js": "^0.5.2",
     "@titaniumnetwork-dev/ultraviolet": "^3.2.10",
     "@tomphttp/bare-server-node": "^2.0.6",
     "async": "^3.2.5",
+    "compression": "^1.8.1",
     "content-type": "^1.0.5",
     "cookie": "^1.0.1",
     "debug": "^4.3.5",

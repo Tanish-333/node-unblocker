@@ -1,4 +1,38 @@
-# unblocker
+# Slipstream
+
+A fast web proxy with a browser-style interface (tabs, shortcuts, settings).
+
+## Deploy on Render (recommended)
+
+1. On https://render.com click **New > Blueprint** and pick this repo. Render reads `render.yaml`.
+2. Click **Apply**. When it says "Live", open your `*.onrender.com` link.
+
+Render's free plan sleeps after 15 minutes without visitors, so the first visit after that takes about a minute.
+A paid instance stays awake.
+
+## Run it on your computer
+
+`npm install`, then `npm start`, then open http://localhost:8080
+
+## How it works
+
+- `static/index.html` is the whole interface.
+- **Scramjet** (default) and **Ultraviolet** run in your browser as a service worker and rewrite each site.
+- They reach the internet through the server using **Wisp** (one fast websocket, `server.js`) when the host
+  supports websockets, or the **bare** HTTP protocol (`app.js`) when it doesn't (Vercel).
+- The classic node-unblocker engine is still at `/proxy/` as a last-resort fallback.
+
+Vercel also works (it uses `app.js` directly) but is slower and has no websockets, so live chat, voice and
+some apps won't work there.
+
+Limits anywhere: sites can see traffic is coming from a data center, so some (Google, YouTube) may show
+CAPTCHAs or block logins.
+
+---
+
+The rest of this file documents the original node-unblocker library this project is built on.
+
+## unblocker library
 
 Unblocker was originally a web proxy for evading internet censorship, similar to CGIproxy / PHProxy / Glype but
 written in node.js. It's since morphed into a general-purpose library for proxying and rewriting remote webpages.
@@ -8,25 +42,6 @@ fastest web proxies available.
 
 [![Node.js CI](https://github.com/nfriedly/node-unblocker/actions/workflows/node.js.yml/badge.svg)](https://github.com/nfriedly/node-unblocker/actions/workflows/node.js.yml)
 [![npm-version](https://img.shields.io/npm/v/unblocker.svg)](https://www.npmjs.com/package/unblocker)
-
-## Deploy on Vercel
-
-1. Go to https://vercel.com/new and import this GitHub repo.
-2. Leave all settings as they are and click **Deploy**.
-3. Open your `*.vercel.app` link. Type a URL or search and press **Go**.
-
-Run it locally with `npm install` then `npm start` (opens on http://localhost:8080).
-
-How it works: the start page (`static/index.html`) uses [Ultraviolet](https://github.com/titaniumnetwork-dev/Ultraviolet),
-which runs as a service worker in your browser, plus a "bare" server in `app.js` that fetches pages for it.
-This handles JavaScript-heavy sites much better than the classic engine. The classic node-unblocker engine is
-still available at `/proxy/` and as a fallback when service workers are blocked.
-
-Files: `app.js` (the Express app Vercel runs), `static/` (start page and service worker),
-`server.js` (only for running locally).
-
-Limits on Vercel: no websockets (live chat, voice, some games won't work), long requests time out,
-video uses a lot of Vercel bandwidth, and some sites (Google, Discord) block or break through web proxies.
 
 ### The magic part
 

@@ -1,21 +1,36 @@
 "use strict";
 
+/*
+ * Slipstream web proxy server.
+ *
+ * Engines (all run in the visitor's browser as a service worker except "classic"):
+ *   - Scramjet (default, fastest): talks to the server over Wisp (one websocket)
+ *     when the host supports websockets (Render, your own server), or over the
+ *     "bare" HTTP protocol when it doesn't (Vercel).
+ *   - Ultraviolet: older engine, kept as a backup.
+ *   - Classic: node-unblocker's server-side rewriting proxy at /proxy/.
+ *
+ * Websocket handling (Wisp) is wired up in server.js, because serverless hosts
+ * like Vercel can't accept websockets.
+ */
+
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
+const compression = require("compression");
 const { createBareServer } = require("@tomphttp/bare-server-node");
 const Unblocker = require("./lib/unblocker.js");
 
+const allowLocal = process.env.ALLOW_LOCAL === "1"; // only for local testing
+
 // ---------------------------------------------------------------------------
-// Main engine: Ultraviolet (runs in the browser as a service worker) talking to
-// a "bare" server here. This handles JavaScript-heavy sites far better than
-// the classic rewriting proxy below.
+// Bare server (HTTP fallback transport for Scramjet and Ultraviolet)
 // ---------------------------------------------------------------------------
 const bare = createBareServer("/bare/", {
   // Only the v3 protocol is used by the browser side; no database needed.
   legacySupport: false,
-  // Block requests to private/internal addresses, except when testing locally.
-  blockLocal: process.env.BARE_ALLOW_LOCAL !== "1",
+  // Block requests to private/internal addresses.
+  blockLocal: !allowLocal,
   // The default limit (10 per IP per minute) breaks big sites that make
   // hundreds of requests per page, so it is effectively turned off.
   connectionLimiter: {
@@ -25,9 +40,13 @@ const bare = createBareServer("/bare/", {
   },
 });
 
+// ---------------------------------------------------------------------------
+// Classic engine (node-unblocker)
+// ---------------------------------------------------------------------------
+
 // Headers that would reveal the visitor's real IP or the hosting platform
 // to the sites being visited. Removed from every outgoing request.
-const PRIVATE_HEADER = /^(x-forwarded-|x-real-ip$|forwarded$|via$|x-vercel-|cf-|true-client-ip$|x-client-ip$)/i;
+const PRIVATE_HEADER = /^(x-forwarded-|x-real-ip$|forwarded$|via$|x-vercel-|x-render-|rndr-|cf-|true-client-ip$|x-client-ip$)/i;
 
 function stripPrivateHeaders(data) {
   Object.keys(data.headers).forEach((name) => {
@@ -37,43 +56,206 @@ function stripPrivateHeaders(data) {
   });
 }
 
-// Adds a small "home" button to proxied HTML pages so you can get back to the start page.
-function homeButton(data) {
-  if (!Unblocker.contentTypes.html.includes(data.contentType)) {
-    return;
-  }
-  const { Transform } = require("stream");
-  let done = false;
-  const button =
-    '<a href="/" target="_top" id="__ub_home" title="Back to proxy home" style="all:initial;position:fixed;z-index:2147483647;' +
-    "right:14px;bottom:14px;width:44px;height:44px;border-radius:50%;background:#4f46e5;color:#fff;" +
-    "display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);" +
-    'font:600 20px/1 system-ui,sans-serif;opacity:.85">&#8962;</a>';
-  data.stream = data.stream.pipe(
-    new Transform({
-      decodeStrings: false,
-      transform(chunk, encoding, next) {
-        let str = chunk.toString();
-        if (!done && /<body[^>]*>/i.test(str)) {
-          str = str.replace(/(<body[^>]*>)/i, "$1" + button);
-          done = true;
-        }
-        this.push(str, "utf8");
-        next();
-      },
-    })
-  );
-}
-
 const unblocker = Unblocker({
   prefix: "/proxy/",
   requestMiddleware: [stripPrivateHeaders],
-  responseMiddleware: [homeButton],
 });
 
+// ---------------------------------------------------------------------------
+// Static files. Each is read with a literal path so Vercel bundles it.
+// ---------------------------------------------------------------------------
+const JS = "application/javascript; charset=utf-8";
+const ASSETS = {
+  "/scram/scramjet.all.js": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@mercuryworkshop",
+        "scramjet",
+        "dist",
+        "scramjet.all.js"
+      )
+    ),
+  ],
+  "/scram/scramjet.sync.js": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@mercuryworkshop",
+        "scramjet",
+        "dist",
+        "scramjet.sync.js"
+      )
+    ),
+  ],
+  "/scram/scramjet.wasm.wasm": [
+    "application/wasm",
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@mercuryworkshop",
+        "scramjet",
+        "dist",
+        "scramjet.wasm.wasm"
+      )
+    ),
+  ],
+  "/epoxy/index.mjs": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@mercuryworkshop",
+        "epoxy-transport",
+        "dist",
+        "index.mjs"
+      )
+    ),
+  ],
+  "/baremod/index.mjs": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@mercuryworkshop",
+        "bare-as-module3",
+        "dist",
+        "index.mjs"
+      )
+    ),
+  ],
+  "/baremux/index.mjs": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@mercuryworkshop",
+        "bare-mux",
+        "dist",
+        "index.mjs"
+      )
+    ),
+  ],
+  "/baremux/worker.js": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@mercuryworkshop",
+        "bare-mux",
+        "dist",
+        "worker.js"
+      )
+    ),
+  ],
+  "/uv/uv.bundle.js": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@titaniumnetwork-dev",
+        "ultraviolet",
+        "dist",
+        "uv.bundle.js"
+      )
+    ),
+  ],
+  "/uv/uv.client.js": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@titaniumnetwork-dev",
+        "ultraviolet",
+        "dist",
+        "uv.client.js"
+      )
+    ),
+  ],
+  "/uv/uv.handler.js": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@titaniumnetwork-dev",
+        "ultraviolet",
+        "dist",
+        "uv.handler.js"
+      )
+    ),
+  ],
+  "/uv/uv.sw.js": [
+    JS,
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "node_modules",
+        "@titaniumnetwork-dev",
+        "ultraviolet",
+        "dist",
+        "uv.sw.js"
+      )
+    ),
+  ],
+  "/uv/uv.config.js": [
+    JS,
+    fs.readFileSync(path.join(__dirname, "static", "uv", "uv.config.js")),
+  ],
+  "/uv/sw.js": [
+    JS,
+    fs.readFileSync(path.join(__dirname, "static", "uv", "sw.js")),
+  ],
+  "/sw.js": [JS, fs.readFileSync(path.join(__dirname, "static", "sw.js"))],
+  "/proxy/client/unblocker-client.js": [
+    JS,
+    fs.readFileSync(
+      path.join(__dirname, "lib", "client", "unblocker-client.js")
+    ),
+  ],
+  "/fonts/inter.woff2": [
+    "font/woff2",
+    fs.readFileSync(path.join(__dirname, "static", "fonts", "inter.woff2")),
+  ],
+  "/logo.svg": [
+    "image/svg+xml",
+    fs.readFileSync(path.join(__dirname, "static", "logo.svg")),
+  ],
+  "/icon-192.png": [
+    "image/png",
+    fs.readFileSync(path.join(__dirname, "static", "icon-192.png")),
+  ],
+  "/icon-512.png": [
+    "image/png",
+    fs.readFileSync(path.join(__dirname, "static", "icon-512.png")),
+  ],
+  "/manifest.webmanifest": [
+    "application/manifest+json",
+    fs.readFileSync(path.join(__dirname, "static", "manifest.webmanifest")),
+  ],
+};
+const HOME_PAGE = fs.readFileSync(path.join(__dirname, "static", "index.html"));
+
+// Files that must always be checked for updates (service workers, the page itself).
+const NO_CACHE = new Set(["/sw.js", "/uv/sw.js", "/manifest.webmanifest"]);
+
+// ---------------------------------------------------------------------------
+// App
+// ---------------------------------------------------------------------------
 const app = express();
 
-// Vercel (and most hosts) sit behind a reverse proxy; trust it so https links are generated correctly.
+// Hosts like Render and Vercel sit behind a reverse proxy; trust it so https links are right.
 app.set("trust proxy", true);
 app.disable("x-powered-by");
 
@@ -86,117 +268,42 @@ app.use((req, res, next) => {
   }
 });
 
-// Read these files with literal paths so Vercel bundles them with the server.
-const HOME_PAGE = fs.readFileSync(path.join(__dirname, "static", "index.html"));
-const CLIENT_SCRIPT = fs.readFileSync(
-  path.join(__dirname, "lib", "client", "unblocker-client.js")
+app.get("/healthz", (req, res) => {
+  res.type("text").send("ok");
+});
+
+// gzip our own files (big JS/wasm bundles shrink a lot); proxied traffic is not touched
+app.use(
+  compression({
+    // skip fonts and images: they're already compressed
+    filter: (req) =>
+      req.path === "/" ||
+      (Object.prototype.hasOwnProperty.call(ASSETS, req.path) &&
+        !/\.(woff2|png)$/.test(req.path)),
+  })
 );
-const ASSETS = {
-  "/uv/uv.bundle.js": fs.readFileSync(
-    path.join(
-      __dirname,
-      "node_modules",
-      "@titaniumnetwork-dev",
-      "ultraviolet",
-      "dist",
-      "uv.bundle.js"
-    )
-  ),
-  "/uv/uv.client.js": fs.readFileSync(
-    path.join(
-      __dirname,
-      "node_modules",
-      "@titaniumnetwork-dev",
-      "ultraviolet",
-      "dist",
-      "uv.client.js"
-    )
-  ),
-  "/uv/uv.handler.js": fs.readFileSync(
-    path.join(
-      __dirname,
-      "node_modules",
-      "@titaniumnetwork-dev",
-      "ultraviolet",
-      "dist",
-      "uv.handler.js"
-    )
-  ),
-  "/uv/uv.sw.js": fs.readFileSync(
-    path.join(
-      __dirname,
-      "node_modules",
-      "@titaniumnetwork-dev",
-      "ultraviolet",
-      "dist",
-      "uv.sw.js"
-    )
-  ),
-  "/uv/uv.config.js": fs.readFileSync(
-    path.join(__dirname, "static", "uv", "uv.config.js")
-  ),
-  "/uv/sw.js": fs.readFileSync(path.join(__dirname, "static", "uv", "sw.js")),
-  "/baremux/index.mjs": fs.readFileSync(
-    path.join(
-      __dirname,
-      "node_modules",
-      "@mercuryworkshop",
-      "bare-mux",
-      "dist",
-      "index.mjs"
-    )
-  ),
-  "/baremux/worker.js": fs.readFileSync(
-    path.join(
-      __dirname,
-      "node_modules",
-      "@mercuryworkshop",
-      "bare-mux",
-      "dist",
-      "worker.js"
-    )
-  ),
-  "/baremod/index.mjs": fs.readFileSync(
-    path.join(
-      __dirname,
-      "node_modules",
-      "@mercuryworkshop",
-      "bare-as-module3",
-      "dist",
-      "index.mjs"
-    )
-  ),
-};
 
 app.get("/", (req, res) => {
   res.type("html").set("Cache-Control", "no-cache").send(HOME_PAGE);
 });
 
 app.get(Object.keys(ASSETS), (req, res) => {
+  const [type, body] = ASSETS[req.path];
   res
-    .type("js")
-    // the service worker script must not be cached long or updates get stuck
+    .type(type)
     .set(
       "Cache-Control",
-      req.path === "/uv/sw.js"
+      NO_CACHE.has(req.path)
         ? "no-cache"
-        : "public, max-age=3600, s-maxage=86400"
+        : "public, max-age=86400, stale-while-revalidate=604800"
     )
-    .send(ASSETS[req.path]);
+    .send(body);
 });
 
-// Pages under /uv/service/ are normally answered by the service worker in the
-// browser. If one reaches the server, the worker isn't running yet: send the
-// visitor home so it can start.
-app.get("/uv/service/*splat", (req, res) => {
+// Proxied pages are normally answered by the service worker in the browser.
+// If one reaches the server, the worker isn't running yet: send the visitor home.
+app.get(["/scramjet/*splat", "/uv/service/*splat"], (req, res) => {
   res.redirect("/");
-});
-
-app.get("/proxy/client/unblocker-client.js", (req, res) => {
-  res
-    .type("js")
-    .set("Cache-Control", "public, max-age=600")
-    .send(CLIENT_SCRIPT);
 });
 
 app.use(unblocker);
@@ -221,14 +328,15 @@ app.use((err, req, res, next) => {
     .type("html")
     .send(
       `<!DOCTYPE html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Couldn't load site</title>` +
-        `<body style="font:16px/1.5 system-ui,sans-serif;max-width:520px;margin:15vh auto;padding:0 16px;text-align:center">` +
+        `<body style="font:16px/1.5 system-ui,sans-serif;max-width:520px;margin:15vh auto;padding:0 16px;text-align:center;background:#07080d;color:#eee">` +
         `<h1 style="font-size:24px">Couldn't load that site</h1>` +
-        `<p style="color:#777">The site didn't respond or blocked the proxy (${msg}).</p>` +
-        `<p><a href="/" style="color:#4f46e5;font-weight:600">Back to home</a></p></body>`
+        `<p style="color:#999">The site didn't respond or blocked the proxy (${msg}).</p>` +
+        `<p><a href="/" target="_top" style="color:#a78bfa;font-weight:600">Back to home</a></p></body>`
     );
 });
 
 app.unblocker = unblocker;
 app.bare = bare;
+app.allowLocal = allowLocal;
 
 module.exports = app;
