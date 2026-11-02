@@ -20,6 +20,9 @@ if (app.allowLocal) {
   wisp.options.allow_private_ips = true;
 }
 
+// tell the page this server accepts websockets, so it uses the fast transport
+app.wispEnabled = true;
+
 const server = http.createServer(app);
 
 // Keep connections open longer than Render's load balancer so they get reused.

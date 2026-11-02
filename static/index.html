@@ -12,6 +12,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="modulepreload" href="/baremux/index.mjs">
+<!--SLIP_CONFIG-->
 <style>
   @font-face {
     font-family: "Inter";
@@ -52,8 +53,7 @@
   #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
   #chrome {
     flex: none;
-    background: rgba(10, 11, 17, 0.92);
-    backdrop-filter: blur(20px);
+    background: #0a0b11;
     border-bottom: 1px solid var(--line);
     position: relative;
     z-index: 5;
@@ -213,23 +213,17 @@
     background: var(--bg);
     isolation: isolate;
   }
-  .aurora { position: absolute; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
-  .blob {
+  /* Static gradients: looks like soft glowing light but costs almost nothing to draw
+     (big animated blur filters made low-end laptops lag). */
+  .aurora {
     position: absolute;
-    width: 46vmax;
-    height: 46vmax;
-    border-radius: 50%;
-    filter: blur(90px);
-    opacity: 0.32;
-    animation: drift 26s ease-in-out infinite alternate;
-  }
-  .blob.a { background: var(--accent); top: -18vmax; left: -10vmax; }
-  .blob.b { background: var(--accent-2); bottom: -22vmax; right: -12vmax; animation-delay: -9s; }
-  .blob.c { background: #ec4899; top: 30%; left: 55%; width: 26vmax; height: 26vmax; opacity: 0.14; animation-delay: -17s; }
-  @keyframes drift {
-    0% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(6vmax, 4vmax) scale(1.12); }
-    100% { transform: translate(-4vmax, 7vmax) scale(0.95); }
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(55vmax 55vmax at -5% -10%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 62%),
+      radial-gradient(60vmax 60vmax at 105% 110%, color-mix(in srgb, var(--accent-2) 34%, transparent), transparent 62%),
+      radial-gradient(28vmax 28vmax at 72% 42%, rgba(236, 72, 153, 0.08), transparent 70%);
   }
   .grid-bg {
     position: absolute;
@@ -241,7 +235,6 @@
     mask-image: radial-gradient(ellipse at 50% 35%, #000 10%, transparent 70%);
     -webkit-mask-image: radial-gradient(ellipse at 50% 35%, #000 10%, transparent 70%);
   }
-  @media (prefers-reduced-motion: reduce) { .blob { animation: none; } }
 
   body.browsing .topright, body.browsing .brand { display: none; }
   .brand {
@@ -294,9 +287,8 @@
     gap: 6px;
     padding: 7px 7px 7px 18px;
     border-radius: 22px;
-    background: rgba(22, 24, 34, 0.7);
+    background: rgba(20, 22, 31, 0.92);
     border: 1px solid var(--line-2);
-    backdrop-filter: blur(24px);
     box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.06);
     transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   }
@@ -437,12 +429,11 @@
     padding: 0;
     border-radius: 22px;
     border: 1px solid var(--line-2);
-    background: rgba(18, 20, 29, 0.96);
-    backdrop-filter: blur(30px);
+    background: #12141d;
     color: var(--text);
     box-shadow: 0 40px 100px -20px rgba(0,0,0,0.9);
   }
-  dialog::backdrop { background: rgba(3, 4, 8, 0.6); backdrop-filter: blur(6px); }
+  dialog::backdrop { background: rgba(3, 4, 8, 0.7); }
   dialog[open] { animation: pop 0.18s ease-out; }
   @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
   .dlg { padding: 22px; }
@@ -546,7 +537,7 @@
 
   <main id="content">
     <section id="home">
-      <div class="aurora"><div class="grid-bg"></div><div class="blob a"></div><div class="blob b"></div><div class="blob c"></div></div>
+      <div class="aurora"><div class="grid-bg"></div></div>
       <div class="brand"><img src="/logo.svg" alt="">Slipstream</div>
       <div class="topright">
         <button class="ib" type="button" data-settings title="Settings"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
@@ -591,8 +582,8 @@
     <div class="field">
       <span class="lbl">Search engine</span>
       <div class="seg" id="engineSeg">
-        <button type="button" data-v="https://duckduckgo.com/?q=">DuckDuckGo</button>
         <button type="button" data-v="https://www.google.com/search?q=">Google</button>
+        <button type="button" data-v="https://duckduckgo.com/?q=">DuckDuckGo</button>
         <button type="button" data-v="https://www.bing.com/search?q=">Bing</button>
         <button type="button" data-v="https://search.brave.com/search?q=">Brave</button>
       </div>
@@ -622,7 +613,7 @@
     </div>
 
     <div class="row">
-      <button class="btn" type="button" id="clearRecent">Clear history</button>
+      <button class="btn" type="button" id="clearRecent">Clear history &amp; cache</button>
       <button class="btn primary" value="close">Done</button>
     </div>
   </form>
@@ -685,7 +676,7 @@ function store(key, value) {
 }
 
 const settings = Object.assign(
-  { engine: "https://duckduckgo.com/?q=", mode: "sj", accent: 0 },
+  { engine: "https://www.google.com/search?q=", mode: "sj", accent: 0 },
   store("settings") || {}
 );
 function saveSettings() {
@@ -703,6 +694,12 @@ function toast(msg) {
 
 // older versions stored "uv"/"classic"; Scramjet is the new default
 if (settings.mode !== "uv") settings.mode = "sj";
+// Google became the default search; move people still on the old default over once
+if (!settings.v2) {
+  if (settings.engine === "https://duckduckgo.com/?q=") settings.engine = "https://www.google.com/search?q=";
+  settings.v2 = true;
+  saveSettings();
+}
 
 // ================= engine =================
 function setStatus(kind, text) {
@@ -756,7 +753,9 @@ function canUseWisp(url) {
 
 async function pickTransport() {
   const wisp = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/wisp/";
-  if (await canUseWisp(wisp)) {
+  // the server says up front whether it accepts websockets; only test if it didn't say
+  const hint = self.__SLIP && self.__SLIP.wisp;
+  if (hint === true || (hint === undefined && (await canUseWisp(wisp)))) {
     return { name: "Wisp (fast)", path: "/epoxy/index.mjs", args: [{ wisp }] };
   }
   return { name: "HTTP fallback", path: "/baremod/index.mjs", args: [location.origin + "/bare/"] };
@@ -1217,10 +1216,13 @@ $("modeSeg").addEventListener("click", (e) => {
   if (v === "uv" && engineOk) setupUV().catch(() => {});
   toast("Engine change applies to pages you open next");
 });
-$("clearRecent").onclick = () => {
+$("clearRecent").onclick = async () => {
   store("recent", []);
   renderRecent();
-  toast("History cleared");
+  try {
+    await caches.delete("slip-cache-v1");
+  } catch (e) {}
+  toast("History and cache cleared");
 };
 
 // close dialogs when clicking the dim background

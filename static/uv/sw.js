@@ -1,7 +1,8 @@
-/*global UVServiceWorker, __uv$config*/
+/*global UVServiceWorker, __uv$config, slipCached*/
 importScripts("/uv/uv.bundle.js");
 importScripts("/uv/uv.config.js");
 importScripts(__uv$config.sw);
+importScripts("/swcache.js");
 
 const uv = new UVServiceWorker();
 
@@ -15,7 +16,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     (async () => {
       if (uv.route(event)) {
-        return await uv.fetch(event);
+        return slipCached(event, () => uv.fetch(event));
       }
       return await fetch(event.request);
     })()

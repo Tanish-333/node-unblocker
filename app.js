@@ -15,6 +15,7 @@
  */
 
 const fs = require("fs");
+const dns = require("dns");
 const path = require("path");
 const express = require("express");
 const compression = require("compression");
@@ -24,6 +25,47 @@ const Unblocker = require("./lib/unblocker.js");
 const allowLocal = process.env.ALLOW_LOCAL === "1"; // only for local testing
 
 // ---------------------------------------------------------------------------
+// DNS cache: big sites pull from dozens of hostnames, and Node does a fresh
+// lookup for every new connection. Results are kept for a minute. Private and
+// internal addresses are refused (same rule the bare server uses by default).
+// ---------------------------------------------------------------------------
+const ipaddr = require("ipaddr.js");
+const dnsCache = new Map();
+const DNS_TTL = 60 * 1000;
+
+function isPublic(address) {
+  try {
+    return ipaddr.parse(address).range() === "unicast";
+  } catch (e) {
+    return false;
+  }
+}
+
+function cachedLookup(hostname, options, callback) {
+  if (typeof options === "function") {
+    callback = options;
+    options = {};
+  }
+  const key = `${hostname}|${options.family || 0}|${options.all ? 1 : 0}`;
+  const hit = dnsCache.get(key);
+  if (hit && hit.expires > Date.now()) {
+    return process.nextTick(callback, null, hit.address, hit.family);
+  }
+  dns.lookup(hostname, options, (err, address, family) => {
+    if (err) return callback(err);
+    const list = Array.isArray(address)
+      ? address.map((a) => a.address)
+      : [address];
+    if (!allowLocal && !list.every(isPublic)) {
+      return callback(new RangeError("Forbidden IP"), "", -1);
+    }
+    if (dnsCache.size > 2000) dnsCache.clear();
+    dnsCache.set(key, { address, family, expires: Date.now() + DNS_TTL });
+    callback(null, address, family);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Bare server (HTTP fallback transport for Scramjet and Ultraviolet)
 // ---------------------------------------------------------------------------
 const bare = createBareServer("/bare/", {
@@ -31,6 +73,7 @@ const bare = createBareServer("/bare/", {
   legacySupport: false,
   // Block requests to private/internal addresses.
   blockLocal: !allowLocal,
+  lookup: cachedLookup,
   // The default limit (10 per IP per minute) breaks big sites that make
   // hundreds of requests per page, so it is effectively turned off.
   connectionLimiter: {
@@ -218,6 +261,10 @@ const ASSETS = {
     fs.readFileSync(path.join(__dirname, "static", "uv", "sw.js")),
   ],
   "/sw.js": [JS, fs.readFileSync(path.join(__dirname, "static", "sw.js"))],
+  "/swcache.js": [
+    JS,
+    fs.readFileSync(path.join(__dirname, "static", "swcache.js")),
+  ],
   "/proxy/client/unblocker-client.js": [
     JS,
     fs.readFileSync(
@@ -245,10 +292,31 @@ const ASSETS = {
     fs.readFileSync(path.join(__dirname, "static", "manifest.webmanifest")),
   ],
 };
-const HOME_PAGE = fs.readFileSync(path.join(__dirname, "static", "index.html"));
+const HOME_PAGE_TEMPLATE = fs.readFileSync(
+  path.join(__dirname, "static", "index.html"),
+  "utf8"
+);
+// The page is told up front whether this server accepts websockets (server.js
+// sets app.wispEnabled), so it doesn't waste time testing.
+const homePages = {};
+function homePage() {
+  const wisp = Boolean(app.wispEnabled);
+  if (!homePages[wisp]) {
+    homePages[wisp] = HOME_PAGE_TEMPLATE.replace(
+      "<!--SLIP_CONFIG-->",
+      `<script>window.__SLIP=${JSON.stringify({ wisp })}</script>`
+    );
+  }
+  return homePages[wisp];
+}
 
 // Files that must always be checked for updates (service workers, the page itself).
-const NO_CACHE = new Set(["/sw.js", "/uv/sw.js", "/manifest.webmanifest"]);
+const NO_CACHE = new Set([
+  "/sw.js",
+  "/uv/sw.js",
+  "/swcache.js",
+  "/manifest.webmanifest",
+]);
 
 // ---------------------------------------------------------------------------
 // App
@@ -284,7 +352,7 @@ app.use(
 );
 
 app.get("/", (req, res) => {
-  res.type("html").set("Cache-Control", "no-cache").send(HOME_PAGE);
+  res.type("html").set("Cache-Control", "no-cache").send(homePage());
 });
 
 app.get(Object.keys(ASSETS), (req, res) => {
@@ -295,7 +363,8 @@ app.get(Object.keys(ASSETS), (req, res) => {
       "Cache-Control",
       NO_CACHE.has(req.path)
         ? "no-cache"
-        : "public, max-age=86400, stale-while-revalidate=604800"
+        : // s-maxage lets Vercel's CDN serve these from a server near the visitor
+          "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800"
     )
     .send(body);
 });
