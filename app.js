@@ -74,6 +74,9 @@ const bare = createBareServer("/bare/", {
   // Block requests to private/internal addresses.
   blockLocal: !allowLocal,
   lookup: cachedLookup,
+  // IPv4 only: hosting providers often can't reach IPv6, and Node tries it first,
+  // waiting up to 250 ms per new connection before falling back.
+  family: 4,
   // The default limit (10 per IP per minute) breaks big sites that make
   // hundreds of requests per page, so it is effectively turned off.
   connectionLimiter: {

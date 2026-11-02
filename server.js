@@ -8,6 +8,7 @@ const app = require("./app.js");
 
 // ---- Wisp (fast websocket transport used by the Scramjet engine) ----
 wisp.options.allow_udp_streams = false; // only TCP is needed for websites
+wisp.options.dns_result_order = "ipv4first"; // avoid slow IPv6 attempts on hosts without IPv6
 // Only web ports: blocks mail (25/465/587), SSH (22) and other low ports so the
 // server can't be used to send spam or attack other services.
 wisp.options.port_blacklist = [

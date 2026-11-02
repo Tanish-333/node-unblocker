@@ -41,6 +41,10 @@ async function slipStore(cache, url, res, lifetime) {
   if (body.size > SLIP_MAX_SIZE) return;
   const headers = new Headers(res.headers);
   headers.delete("vary");
+  // the stored body is already decoded and complete; drop size/encoding labels
+  headers.delete("content-encoding");
+  headers.delete("content-length");
+  headers.delete("transfer-encoding");
   headers.set("x-slip-expires", String(Date.now() + lifetime * 1000));
   await cache.put(
     url,

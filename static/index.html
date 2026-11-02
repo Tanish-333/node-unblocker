@@ -641,7 +641,7 @@
 
 <script src="/scram/scramjet.all.js"></script>
 <script type="module">
-import { BareMuxConnection } from "/baremux/index.mjs";
+import { BareMuxConnection, BareClient } from "/baremux/index.mjs";
 
 const $ = (id) => document.getElementById(id);
 $("year").textContent = new Date().getFullYear();
@@ -719,15 +719,21 @@ const scramjet = new ScramjetController({
 
 // navigator.serviceWorker.ready only works for pages inside a worker's scope,
 // which this page is not, so wait for the worker to activate directly
+// (also gives up waiting if an update fails or takes too long, instead of hanging)
 async function waitActive(reg) {
   const sw = reg.installing || reg.waiting || reg.active;
   if (sw && sw.state !== "activated") {
     await new Promise((resolve) => {
+      const timer = setTimeout(resolve, 8000);
       sw.addEventListener("statechange", () => {
-        if (sw.state === "activated") resolve();
+        if (sw.state === "activated" || sw.state === "redundant") {
+          clearTimeout(timer);
+          resolve();
+        }
       });
     });
   }
+  if (!reg.active) throw new Error("Service worker failed to start.");
 }
 
 // Use the fast websocket transport (Wisp) when the server supports it
@@ -765,6 +771,9 @@ async function setupEngine() {
   if (!("serviceWorker" in navigator) || !window.isSecureContext) {
     throw new Error("Service workers are not available here.");
   }
+  // Create the connection first: it answers the service worker's request for a
+  // channel. Creating it after the worker started cost a 1 second retry.
+  const conn = new BareMuxConnection("/baremux/worker.js");
   const [transport] = await Promise.all([
     pickTransport(),
     (async () => {
@@ -772,8 +781,14 @@ async function setupEngine() {
       await waitActive(await navigator.serviceWorker.register("/sw.js", { scope: "/scramjet/" }));
     })(),
   ]);
-  const conn = new BareMuxConnection("/baremux/worker.js");
   await conn.setTransport(transport.path, transport.args);
+  // Warm up: the transport loads and connects on its first request, which made
+  // the first site you opened slower. Do it now, and finish it before any site
+  // can open (two requests starting it at the same time made it hang).
+  await Promise.race([
+    new BareClient().fetch(location.origin + "/healthz").catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 4000)),
+  ]);
   return transport;
 }
 
@@ -801,7 +816,11 @@ function setupUV() {
 }
 
 let engineOk = false;
-const engineReady = setupEngine().then(
+const engineStart = Promise.race([
+  setupEngine(),
+  new Promise((resolve, reject) => setTimeout(() => reject(new Error("Engine took too long to start.")), 10000)),
+]);
+const engineReady = engineStart.then(
   (t) => {
     engineOk = true;
     $("transportName").textContent = t.name;
@@ -896,6 +915,7 @@ async function navigate(tab, url) {
       engine = "sj";
     }
   }
+  if (!/duckduckgo\.com/.test(url)) tab.googleFallback = false;
   tab.url = url;
   tab.title = hostOf(url);
   tab.loading = true;
@@ -943,11 +963,28 @@ function onLoad(tab) {
   renderTabs();
 }
 
+// Google often answers searches from data-center servers (like this proxy) with
+// an "unusual traffic" page. When that happens, run the same search on DuckDuckGo.
+function googleBlocked(tab, url) {
+  const m = /^https?:\/\/(www\.)?google\.[a-z.]+\/sorry\//i.test(url);
+  if (!m || tab.googleFallback) return false;
+  let q = "";
+  try {
+    const cont = new URL(url).searchParams.get("continue") || "";
+    q = new URL(cont).searchParams.get("q") || "";
+  } catch (e) {}
+  tab.googleFallback = true;
+  toast("Google blocked this server, so this search used DuckDuckGo");
+  navigate(tab, q ? "https://duckduckgo.com/?q=" + encodeURIComponent(q) : "https://duckduckgo.com/");
+  return true;
+}
+
 function syncTab(tab) {
   let changed = false;
   try {
     const win = tab.frame.contentWindow;
     const url = realUrl(win.location);
+    if (url && googleBlocked(tab, url)) return false;
     if (url && url !== tab.url) {
       tab.url = url;
       changed = true;
@@ -1051,7 +1088,9 @@ $("homeForm").addEventListener("submit", (e) => {
 });
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "/" && !$("home").hidden && document.activeElement !== $("q") && !document.querySelector("dialog[open]")) {
+  const el = document.activeElement;
+  const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+  if (e.key === "/" && !typing && !$("home").hidden && !document.querySelector("dialog[open]")) {
     e.preventDefault();
     $("q").focus();
   }
