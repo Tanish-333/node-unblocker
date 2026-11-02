@@ -5,13 +5,28 @@
  * directly, outside the proxy, so through a proxy it always fails and the
  * sign-in button can get stuck. Hiding it makes Google's sign-in script fall
  * back to its normal pop-up / redirect flow, which goes through the proxy.
+ *
+ * Staying in the tab: login buttons and forms often use target="_top" (or
+ * "_parent"), which replaced the whole Slipstream page with the site. When the
+ * page is a Slipstream tab, those now open in the tab itself, which is what
+ * the site means by "_top" there anyway.
  */
 // slipPageFix is used by the service workers that importScripts() this file
 const SLIP_PAGE_SCRIPT =
   "<script>(function(){try{delete window.IdentityCredential}catch(e){}" +
   "try{var c=navigator.credentials;if(c&&c.get){var g=c.get.bind(c);" +
   'c.get=function(o){if(o&&o.identity)return Promise.reject(new DOMException("FedCM is not available","NotAllowedError"));return g(o)}}}catch(e){}' +
-  "})()</script>";
+  "})();" +
+  "(function(){try{var p=window.parent;if(p===window||!p.__slipApp)return;" +
+  'var T=/^_(top|parent)$/i,F="formtarget";' +
+  "function base(){var b=document.querySelector('base[target]');return b&&T.test(b.getAttribute('target'))}" +
+  "function fix(el,attr){if(!el||!el.getAttribute)return;var t=el.getAttribute(attr);" +
+  "if(t?T.test(t):attr==='target'&&base())el.setAttribute(attr,'_self')}" +
+  'addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest("a[href],area[href]");fix(a,"target");' +
+  'var b=e.target&&e.target.closest&&e.target.closest("button,input");if(b)fix(b,F)},true);' +
+  'addEventListener("submit",function(e){fix(e.target,"target");if(e.submitter)fix(e.submitter,F)},true);' +
+  "var P=HTMLFormElement.prototype,s=P.submit;P.submit=function(){fix(this,'target');return s.apply(this,arguments)}" +
+  "}catch(e){}})()</script>";
 const SLIP_PAGE_BYTES = new TextEncoder().encode(SLIP_PAGE_SCRIPT);
 const SLIP_SEARCH_LIMIT = 64 * 1024; // only look for <head> near the start
 

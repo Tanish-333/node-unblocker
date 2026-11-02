@@ -643,6 +643,9 @@
 <script type="module">
 import { BareMuxConnection, BareClient } from "/baremux/index.mjs";
 
+// lets proxied pages know they're inside a Slipstream tab (see pagefix.js)
+window.__slipApp = true;
+
 const $ = (id) => document.getElementById(id);
 $("year").textContent = new Date().getFullYear();
 

@@ -164,7 +164,7 @@ const ASSETS = {
       )
     ),
   ],
-  "/baremod/index.mjs": [
+  "/baremod/base.mjs": [
     JS,
     fs.readFileSync(
       path.join(
@@ -176,6 +176,10 @@ const ASSETS = {
         "index.mjs"
       )
     ),
+  ],
+  "/baremod/index.mjs": [
+    JS,
+    fs.readFileSync(path.join(__dirname, "static", "baremod.mjs")),
   ],
   "/baremux/index.mjs": [
     JS,
@@ -190,7 +194,7 @@ const ASSETS = {
       )
     ),
   ],
-  "/baremux/worker.js": [
+  "/baremux/worker-base.js": [
     JS,
     fs.readFileSync(
       path.join(
@@ -202,6 +206,10 @@ const ASSETS = {
         "worker.js"
       )
     ),
+  ],
+  "/baremux/worker.js": [
+    JS,
+    fs.readFileSync(path.join(__dirname, "static", "baremux-worker.js")),
   ],
   "/uv/uv.bundle.js": [
     JS,
@@ -324,6 +332,8 @@ const NO_CACHE = new Set([
   "/swcache.js",
   "/pagefix.js",
   "/manifest.webmanifest",
+  "/baremux/worker.js",
+  "/baremod/index.mjs",
 ]);
 
 // ---------------------------------------------------------------------------
