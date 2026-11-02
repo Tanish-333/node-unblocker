@@ -58,7 +58,7 @@ app.set("trust proxy", true);
 app.disable("x-powered-by");
 
 // Read these files with literal paths so Vercel bundles them with the server.
-const HOME_PAGE = fs.readFileSync(path.join(__dirname, "public", "index.html"));
+const HOME_PAGE = fs.readFileSync(path.join(__dirname, "static", "index.html"));
 const CLIENT_SCRIPT = fs.readFileSync(
   path.join(__dirname, "lib", "client", "unblocker-client.js")
 );
