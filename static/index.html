@@ -15,7 +15,8 @@
     --border: #e2e4ec;
     --accent: #4f46e5;
     --accent-text: #ffffff;
-    --chip: #eef0f6;
+    --bar: #ffffff;
+    --hover: #eef0f6;
     --warn-bg: #fff7e6;
     --warn-text: #7a4b00;
   }
@@ -28,32 +29,33 @@
       --border: #2a2d38;
       --accent: #7c74ff;
       --accent-text: #ffffff;
-      --chip: #22252f;
+      --bar: #15171d;
+      --hover: #22252f;
       --warn-bg: #2b2414;
       --warn-text: #f1cf8a;
     }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; }
+  html, body { margin: 0; height: 100%; }
   body {
-    min-height: 100vh;
     background: var(--bg);
     color: var(--text);
     font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---------- home ---------- */
+  #home {
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 12vh 16px 32px;
   }
-  main { width: 100%; max-width: 640px; }
-  h1 {
-    margin: 0 0 4px;
-    font-size: 32px;
-    letter-spacing: -0.02em;
-    text-align: center;
-  }
+  main { width: 100%; max-width: 660px; }
+  h1 { margin: 0 0 4px; font-size: 34px; letter-spacing: -0.02em; text-align: center; }
   .sub { margin: 0 0 28px; text-align: center; color: var(--muted); }
-  form {
+  .search {
     display: flex;
     gap: 8px;
     background: var(--card);
@@ -62,8 +64,8 @@
     padding: 6px;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
   }
-  form:focus-within { border-color: var(--accent); }
-  input[type="text"] {
+  .search:focus-within { border-color: var(--accent); }
+  .search input {
     flex: 1;
     min-width: 0;
     border: 0;
@@ -73,7 +75,7 @@
     font-size: 17px;
     padding: 10px 12px;
   }
-  button {
+  .go {
     border: 0;
     border-radius: 10px;
     background: var(--accent);
@@ -82,7 +84,7 @@
     padding: 0 20px;
     cursor: pointer;
   }
-  button:hover { filter: brightness(1.08); }
+  .go:hover { filter: brightness(1.08); }
   .options {
     display: flex;
     flex-wrap: wrap;
@@ -92,7 +94,7 @@
     color: var(--muted);
     font-size: 14px;
   }
-  .options label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .options label { display: inline-flex; align-items: center; gap: 6px; }
   select {
     background: var(--card);
     color: var(--text);
@@ -112,11 +114,10 @@
   }
   h2 button {
     background: none;
+    border: 0;
     color: var(--muted);
-    padding: 0;
+    cursor: pointer;
     font-size: 12px;
-    text-transform: none;
-    letter-spacing: 0;
   }
   .grid {
     display: grid;
@@ -146,147 +147,343 @@
     border-radius: 12px;
     padding: 12px 14px;
     font-size: 14px;
+    margin-bottom: 12px;
   }
   .note strong { display: block; margin-bottom: 2px; }
-  footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
+  footer { margin-top: 20px; color: var(--muted); font-size: 12px; text-align: center; }
   footer a { color: var(--muted); }
-  @media (max-width: 480px) {
-    body { padding-top: 8vh; }
-    h1 { font-size: 26px; }
-    button { padding: 0 14px; }
+
+  /* ---------- browser view ---------- */
+  #browser { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background: var(--bar);
+    border-bottom: 1px solid var(--border);
+  }
+  .icon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .icon:hover { background: var(--hover); }
+  .icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #addr {
+    flex: 1;
+    min-width: 0;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 17px;
+    background: var(--bg);
+    color: var(--text);
+    padding: 0 14px;
+    font-size: 14px;
+    outline: 0;
+  }
+  #addr:focus { border-color: var(--accent); }
+  .progress { height: 2px; background: transparent; overflow: hidden; }
+  .progress.on::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: 30%;
+    background: var(--accent);
+    animation: slide 1s ease-in-out infinite;
+  }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(400%); } }
+  #frame { flex: 1; width: 100%; border: 0; background: #fff; }
+
+  @media (max-width: 520px) {
+    #home { padding-top: 8vh; }
+    h1 { font-size: 28px; }
+    .go { padding: 0 14px; }
+    .hide-sm { display: none; }
   }
 </style>
 </head>
 <body>
-<main>
-  <h1>Unblocker</h1>
-  <p class="sub">Browse any website through this server.</p>
 
-  <form id="go" autocomplete="off">
-    <input id="q" type="text" placeholder="Enter a URL or search" autofocus aria-label="URL or search">
-    <button type="submit">Go</button>
+<section id="home">
+  <main>
+    <h1>Unblocker</h1>
+    <p class="sub">Browse any website through this server.</p>
+
+    <form class="search" id="homeForm" autocomplete="off">
+      <input id="q" type="text" placeholder="Enter a URL or search" autofocus aria-label="URL or search">
+      <button class="go" type="submit">Go</button>
+    </form>
+
+    <div class="options">
+      <label>Search with
+        <select id="engine">
+          <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
+          <option value="https://www.google.com/search?q=">Google</option>
+          <option value="https://www.bing.com/search?q=">Bing</option>
+          <option value="https://search.brave.com/search?q=">Brave</option>
+        </select>
+      </label>
+      <label>Engine
+        <select id="mode">
+          <option value="uv">Fast (recommended)</option>
+          <option value="classic">Classic</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="note" id="swWarn" hidden>
+      <strong>Fast engine unavailable</strong>
+      <span id="swWarnText">Your browser blocked the service worker this needs, so the Classic engine is being used. Many sites will not work in Classic mode.</span>
+    </div>
+
+    <h2>Quick links</h2>
+    <div class="grid" id="quick"></div>
+
+    <div id="recentWrap" hidden>
+      <h2>Recent <button type="button" id="clear">Clear</button></h2>
+      <div class="grid" id="recent"></div>
+    </div>
+
+    <div class="note">
+      <strong>Heads up</strong>
+      This is a web proxy, not a full VPN. It only covers pages opened here, not other apps.
+      Live chat, voice and some logins may not work. Don't enter important passwords on proxied sites.
+    </div>
+
+    <footer>Built on <a href="https://github.com/titaniumnetwork-dev/Ultraviolet" target="_blank" rel="noopener">Ultraviolet</a> and <a href="https://github.com/nfriedly/node-unblocker" target="_blank" rel="noopener">node-unblocker</a></footer>
+  </main>
+</section>
+
+<section id="browser" hidden>
+  <form class="bar" id="barForm" autocomplete="off">
+    <button class="icon" type="button" id="back" title="Back"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="icon" type="button" id="fwd" title="Forward"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+    <button class="icon" type="button" id="reload" title="Reload"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+    <button class="icon" type="button" id="homeBtn" title="Home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+    <input id="addr" type="text" aria-label="Address" spellcheck="false">
+    <button class="icon hide-sm" type="button" id="full" title="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   </form>
+  <div class="progress" id="progress"></div>
+  <iframe id="frame" title="Browsing" allow="fullscreen; autoplay; clipboard-read; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+</section>
 
-  <div class="options">
-    <label>Search with
-      <select id="engine">
-        <option value="https://html.duckduckgo.com/html/?q=">DuckDuckGo</option>
-        <option value="https://www.bing.com/search?q=">Bing</option>
-        <option value="https://search.brave.com/search?q=">Brave</option>
-      </select>
-    </label>
-    <label><input type="checkbox" id="newtab"> Open in new tab</label>
-  </div>
+<script src="/uv/uv.bundle.js"></script>
+<script src="/uv/uv.config.js"></script>
+<script type="module">
+import { BareMuxConnection } from "/baremux/index.mjs";
 
-  <h2>Quick links</h2>
-  <div class="grid" id="quick"></div>
+const QUICK = [
+  ["YouTube", "https://www.youtube.com/"],
+  ["Wikipedia", "https://en.wikipedia.org/"],
+  ["Reddit", "https://www.reddit.com/"],
+  ["DuckDuckGo", "https://duckduckgo.com/"],
+  ["GitHub", "https://github.com/"],
+  ["Spotify", "https://open.spotify.com/"],
+  ["Twitch", "https://www.twitch.tv/"],
+  ["Coolmath Games", "https://www.coolmathgames.com/"],
+];
 
-  <div id="recentWrap" hidden>
-    <h2>Recent <button type="button" id="clear">Clear</button></h2>
-    <div class="grid" id="recent"></div>
-  </div>
+const $ = (id) => document.getElementById(id);
+const config = self.__uv$config;
 
-  <div class="note">
-    <strong>Heads up</strong>
-    This is a web proxy, not a full VPN. It only covers pages opened here, not other apps.
-    Simple sites work best. Google, YouTube, Discord, logins and video calls often break.
-    Don't enter passwords on proxied sites: the server can see that traffic.
-  </div>
+function store(key, value) {
+  try {
+    if (value === undefined) return JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    return null;
+  }
+}
 
-  <footer>Powered by <a href="https://github.com/nfriedly/node-unblocker" target="_blank" rel="noopener">node-unblocker</a> (AGPL-3.0)</footer>
-</main>
+// ---------- engine setup ----------
+let uvReady = null;
 
-<script>
-(function () {
-  var PREFIX = "/proxy/";
-  var QUICK = [
-    ["Wikipedia", "https://en.wikipedia.org/"],
-    ["DuckDuckGo", "https://html.duckduckgo.com/html/"],
-    ["Reddit", "https://old.reddit.com/"],
-    ["Hacker News", "https://news.ycombinator.com/"],
-    ["GitHub", "https://github.com/"],
-    ["BBC News", "https://www.bbc.com/news"]
-  ];
+async function setupUV() {
+  if (!("serviceWorker" in navigator) || !window.isSecureContext) {
+    throw new Error("Service workers are not available here.");
+  }
+  const reg = await navigator.serviceWorker.register("/uv/sw.js", { scope: config.prefix });
+  // wait until the worker is active (navigator.serviceWorker.ready only works
+  // for pages inside the worker's scope, which this page is not)
+  const sw = reg.installing || reg.waiting || reg.active;
+  if (sw && sw.state !== "activated") {
+    await new Promise((resolve) => {
+      sw.addEventListener("statechange", () => {
+        if (sw.state === "activated") resolve();
+      });
+    });
+  }
+  const conn = new BareMuxConnection("/baremux/worker.js");
+  await conn.setTransport("/baremod/index.mjs", [location.origin + "/bare/"]);
+}
 
-  function store(key, value) {
+function mode() {
+  return $("mode").value;
+}
+
+uvReady = setupUV().catch((err) => {
+  console.error(err);
+  $("swWarn").hidden = false;
+  $("mode").value = "classic";
+  return Promise.reject(err);
+});
+uvReady.catch(() => {});
+
+// ---------- url helpers ----------
+function toUrl(text) {
+  text = text.trim();
+  if (!text) return null;
+  if (/^https?:\/\//i.test(text)) return text;
+  if (!/\s/.test(text) && /^[^\s/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(text)) {
+    return "https://" + text;
+  }
+  return $("engine").value + encodeURIComponent(text);
+}
+
+function proxied(url) {
+  return mode() === "uv" ? config.prefix + config.encodeUrl(url) : "/proxy/" + url;
+}
+
+// turn the iframe's address back into the real site address
+function realUrl(loc) {
+  try {
+    const path = loc.pathname + loc.search + loc.hash;
+    if (path.startsWith(config.prefix)) {
+      return config.decodeUrl(loc.pathname.slice(config.prefix.length)) + loc.search + loc.hash;
+    }
+    if (path.startsWith("/proxy/")) return path.slice(7);
+  } catch (e) {}
+  return null;
+}
+
+// ---------- navigation ----------
+function remember(url) {
+  let host = "";
+  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return; }
+  const recent = (store("recent") || []).filter((r) => r[0] !== host);
+  recent.unshift([host, url]);
+  store("recent", recent.slice(0, 8));
+}
+
+async function open(url) {
+  if (!url) return;
+  if (mode() === "uv") {
     try {
-      if (value === undefined) return JSON.parse(localStorage.getItem(key));
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (e) { return null; }
-  }
-
-  // Turn what the user typed into a full URL (or a search URL).
-  function toUrl(text) {
-    text = text.trim();
-    if (!text) return null;
-    if (/^https?:\/\//i.test(text)) return text;
-    // looks like a domain: has a dot, no spaces
-    if (!/\s/.test(text) && /^[^\s\/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(text)) {
-      return "https://" + text;
-    }
-    return document.getElementById("engine").value + encodeURIComponent(text);
-  }
-
-  function open(url) {
-    var host = "";
-    try { host = new URL(url).hostname; } catch (e) {}
-    if (host) {
-      var recent = (store("recent") || []).filter(function (r) { return r[1] !== url; });
-      recent.unshift([host.replace(/^www\./, ""), url]);
-      store("recent", recent.slice(0, 8));
-    }
-    var target = PREFIX + url;
-    if (document.getElementById("newtab").checked) {
-      window.open(target, "_blank", "noopener");
-      renderRecent();
-    } else {
-      location.href = target;
+      await uvReady;
+    } catch (e) {
+      // fall through: mode() is now "classic"
     }
   }
+  remember(url);
+  $("home").hidden = true;
+  $("browser").hidden = false;
+  $("addr").value = url;
+  $("progress").classList.add("on");
+  $("frame").src = proxied(url);
+}
 
-  function tile(name, url) {
-    var a = document.createElement("a");
-    a.className = "tile";
-    a.href = PREFIX + url;
-    a.textContent = name;
-    var s = document.createElement("small");
-    s.textContent = url.replace(/^https?:\/\//, "");
-    a.appendChild(s);
-    a.addEventListener("click", function (e) { e.preventDefault(); open(url); });
-    return a;
-  }
-
-  function renderRecent() {
-    var recent = store("recent") || [];
-    var box = document.getElementById("recent");
-    box.textContent = "";
-    recent.forEach(function (r) { box.appendChild(tile(r[0], r[1])); });
-    document.getElementById("recentWrap").hidden = recent.length === 0;
-  }
-
-  var quick = document.getElementById("quick");
-  QUICK.forEach(function (q) { quick.appendChild(tile(q[0], q[1])); });
-
-  var engine = document.getElementById("engine");
-  var newtab = document.getElementById("newtab");
-  if (store("engine")) engine.value = store("engine");
-  newtab.checked = !!store("newtab");
-  engine.addEventListener("change", function () { store("engine", engine.value); });
-  newtab.addEventListener("change", function () { store("newtab", newtab.checked); });
-
-  document.getElementById("clear").addEventListener("click", function () {
-    store("recent", []);
-    renderRecent();
-  });
-
-  document.getElementById("go").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var url = toUrl(document.getElementById("q").value);
-    if (url) open(url);
-  });
-
+function goHome() {
+  $("frame").src = "about:blank";
+  $("browser").hidden = true;
+  $("home").hidden = false;
+  document.title = "Unblocker";
   renderRecent();
-})();
+  $("q").focus();
+}
+
+const frame = $("frame");
+frame.addEventListener("load", () => {
+  $("progress").classList.remove("on");
+  try {
+    const win = frame.contentWindow;
+    const url = realUrl(win.location);
+    if (url && document.activeElement !== $("addr")) $("addr").value = url;
+    if (win.document.title) document.title = win.document.title;
+  } catch (e) {}
+});
+
+// keep the address bar in sync with single-page sites (like YouTube) that change URL without reloading
+setInterval(() => {
+  if ($("browser").hidden || document.activeElement === $("addr")) return;
+  try {
+    const url = realUrl(frame.contentWindow.location);
+    if (url && $("addr").value !== url) $("addr").value = url;
+    const t = frame.contentWindow.document.title;
+    if (t && document.title !== t) document.title = t;
+  } catch (e) {}
+}, 700);
+
+$("back").onclick = () => { try { frame.contentWindow.history.back(); } catch (e) {} };
+$("fwd").onclick = () => { try { frame.contentWindow.history.forward(); } catch (e) {} };
+$("reload").onclick = () => {
+  $("progress").classList.add("on");
+  try { frame.contentWindow.location.reload(); } catch (e) { frame.src = frame.src; }
+};
+$("homeBtn").onclick = goHome;
+$("full").onclick = () => {
+  const el = $("browser");
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (el.requestFullscreen) el.requestFullscreen();
+};
+$("addr").addEventListener("focus", () => $("addr").select());
+
+$("barForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  $("addr").blur();
+  open(toUrl($("addr").value));
+});
+
+$("homeForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  open(toUrl($("q").value));
+});
+
+// ---------- home tiles ----------
+function tile(name, url) {
+  const a = document.createElement("a");
+  a.className = "tile";
+  a.href = "#";
+  a.textContent = name;
+  const s = document.createElement("small");
+  s.textContent = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  a.appendChild(s);
+  a.addEventListener("click", (e) => {
+    e.preventDefault();
+    open(url);
+  });
+  return a;
+}
+
+function renderRecent() {
+  const recent = store("recent") || [];
+  const box = $("recent");
+  box.textContent = "";
+  recent.forEach((r) => box.appendChild(tile(r[0], r[1])));
+  $("recentWrap").hidden = recent.length === 0;
+}
+
+QUICK.forEach((q) => $("quick").appendChild(tile(q[0], q[1])));
+
+const engine = $("engine");
+if (store("engine")) engine.value = store("engine");
+engine.addEventListener("change", () => store("engine", engine.value));
+if (store("mode") === "classic") $("mode").value = "classic";
+$("mode").addEventListener("change", () => store("mode", $("mode").value));
+
+$("clear").addEventListener("click", () => {
+  store("recent", []);
+  renderRecent();
+});
+
+renderRecent();
 </script>
 </body>
 </html>

@@ -28,6 +28,12 @@ module.exports = {
       },
     },
     {
+      files: ["static/**/*.js"],
+      env: { browser: true, worker: true, node: false },
+      parserOptions: { ecmaVersion: 2020 },
+      rules: { "node/no-unsupported-features/es-syntax": "off", strict: "off" },
+    },
+    {
       files: ["test/**"],
       rules: {
         "node/no-unsupported-features/node-builtins": "off",

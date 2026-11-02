@@ -17,11 +17,16 @@ fastest web proxies available.
 
 Run it locally with `npm install` then `npm start` (opens on http://localhost:8080).
 
-Files used for this: `app.js` (the Express app Vercel runs), `static/index.html` (start page),
+How it works: the start page (`static/index.html`) uses [Ultraviolet](https://github.com/titaniumnetwork-dev/Ultraviolet),
+which runs as a service worker in your browser, plus a "bare" server in `app.js` that fetches pages for it.
+This handles JavaScript-heavy sites much better than the classic engine. The classic node-unblocker engine is
+still available at `/proxy/` and as a fallback when service workers are blocked.
+
+Files: `app.js` (the Express app Vercel runs), `static/` (start page and service worker),
 `server.js` (only for running locally).
 
-Limits on Vercel: no websockets (live chat, some games won't work), long requests time out,
-and many big sites (Google, YouTube, Discord) block or break through web proxies.
+Limits on Vercel: no websockets (live chat, voice, some games won't work), long requests time out,
+video uses a lot of Vercel bandwidth, and some sites (Google, Discord) block or break through web proxies.
 
 ### The magic part
 

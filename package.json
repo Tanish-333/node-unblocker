@@ -8,6 +8,10 @@
     "node": ">=16.17"
   },
   "dependencies": {
+    "@mercuryworkshop/bare-as-module3": "^2.2.5",
+    "@mercuryworkshop/bare-mux": "^2.1.9",
+    "@titaniumnetwork-dev/ultraviolet": "^3.2.10",
+    "@tomphttp/bare-server-node": "^2.0.6",
     "async": "^3.2.5",
     "content-type": "^1.0.5",
     "cookie": "^1.0.1",
