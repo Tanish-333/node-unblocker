@@ -17,10 +17,10 @@ fastest web proxies available.
 
 Run it locally with `npm install` then `npm start` (opens on http://localhost:8080).
 
-Files used for this: `app.js` (the proxy + start page server), `api/index.js` (Vercel entry),
-`public/index.html` (start page), `vercel.json` (routing).
+Files used for this: `app.js` (the Express app Vercel runs), `public/index.html` (start page),
+`server.js` (only for running locally).
 
-Limits on Vercel: no websockets (live chat, some games won't work), each request can run at most 60 seconds,
+Limits on Vercel: no websockets (live chat, some games won't work), long requests time out,
 and many big sites (Google, YouTube, Discord) block or break through web proxies.
 
 ### The magic part

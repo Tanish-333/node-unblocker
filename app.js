@@ -1,5 +1,6 @@
 "use strict";
 
+const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const Unblocker = require("./lib/unblocker.js");
@@ -56,10 +57,24 @@ const app = express();
 app.set("trust proxy", true);
 app.disable("x-powered-by");
 
-app.use(unblocker);
+// Read these files with literal paths so Vercel bundles them with the server.
+const HOME_PAGE = fs.readFileSync(path.join(__dirname, "public", "index.html"));
+const CLIENT_SCRIPT = fs.readFileSync(
+  path.join(__dirname, "lib", "client", "unblocker-client.js")
+);
 
-// Vercel serves /public from its CDN; this is for running locally.
-app.use(express.static(path.join(__dirname, "public")));
+app.get("/", (req, res) => {
+  res.type("html").send(HOME_PAGE);
+});
+
+app.get("/proxy/client/unblocker-client.js", (req, res) => {
+  res
+    .type("js")
+    .set("Cache-Control", "public, max-age=600")
+    .send(CLIENT_SCRIPT);
+});
+
+app.use(unblocker);
 
 app.use((req, res) => {
   res.redirect("/");
