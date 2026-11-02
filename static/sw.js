@@ -1,5 +1,5 @@
-/*global $scramjetLoadWorker, slipCached*/
-importScripts("/scram/scramjet.all.js", "/swcache.js");
+/*global $scramjetLoadWorker, slipCached, slipPageFix*/
+importScripts("/scram/scramjet.all.js", "/swcache.js", "/pagefix.js");
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
@@ -15,7 +15,8 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       await scramjet.loadConfig();
       if (scramjet.route(event)) {
-        return slipCached(event, () => scramjet.fetch(event));
+        const res = await slipCached(event, () => scramjet.fetch(event));
+        return slipPageFix(event, res);
       }
       return fetch(event.request);
     })()

@@ -583,10 +583,10 @@
       <span class="lbl">Search engine</span>
       <div class="seg" id="engineSeg">
         <button type="button" data-v="https://www.google.com/search?q=">Google</button>
-        <button type="button" data-v="https://duckduckgo.com/?q=">DuckDuckGo</button>
         <button type="button" data-v="https://www.bing.com/search?q=">Bing</button>
-        <button type="button" data-v="https://search.brave.com/search?q=">Brave</button>
+        <button type="button" data-v="https://duckduckgo.com/?q=">DuckDuckGo</button>
       </div>
+      <div class="hint">If Google or DuckDuckGo blocks this server, searches switch to Bing automatically.</div>
     </div>
 
     <div class="field">
@@ -694,6 +694,7 @@ function toast(msg) {
 
 // older versions stored "uv"/"classic"; Scramjet is the new default
 if (settings.mode !== "uv") settings.mode = "sj";
+if (/search\.brave\.com/.test(settings.engine)) settings.engine = "https://www.google.com/search?q=";
 // Google became the default search; move people still on the old default over once
 if (!settings.v2) {
   if (settings.engine === "https://duckduckgo.com/?q=") settings.engine = "https://www.google.com/search?q=";
@@ -840,7 +841,31 @@ function toUrl(text) {
   if (!text) return null;
   if (/^https?:\/\//i.test(text)) return text;
   if (!/\s/.test(text) && /^[^\s/]+\.[a-z]{2,}(:\d+)?([/?#].*)?$/i.test(text)) return "https://" + text;
-  return settings.engine + encodeURIComponent(text);
+  lastQuery = text;
+  // if the chosen engine blocked this server recently, go straight to Bing
+  const engine = engineBlockedRecently(settings.engine) ? BING : settings.engine;
+  return engine + encodeURIComponent(text);
+}
+
+// ================= blocked search engines =================
+// Google and DuckDuckGo often refuse searches from data-center servers (like
+// this proxy) with an "unusual traffic" / error page. Bing doesn't, so when a
+// search gets blocked it is redone on Bing, and for the next 30 minutes
+// searches go straight to Bing instead of wasting time on the blocked engine.
+const BING = "https://www.bing.com/search?q=";
+const BLOCK_PAGES = [
+  /^https?:\/\/(www\.)?google\.[a-z.]+\/sorry\//i,
+  /^https?:\/\/(html\.)?duckduckgo\.com\/static-pages\/home-error\//i,
+];
+let lastQuery = "";
+
+function engineBlockedRecently(engine) {
+  try {
+    const until = Number(sessionStorage.getItem("blocked:" + new URL(engine).hostname));
+    return until > Date.now();
+  } catch (e) {
+    return false;
+  }
 }
 
 // turn an iframe's address back into the real site address
@@ -904,10 +929,34 @@ function select(tab) {
   }
 }
 
-async function navigate(tab, url) {
+// Which engine works best differs per site (e.g. Scramjet hangs on Wikipedia,
+// where Ultraviolet is fine). This remembers the one that worked for each site.
+// Sites measured to work with only one engine, so they work on the first visit.
+const KNOWN_ENGINES = [
+  ["wikipedia.org", "uv"], // Scramjet leaves its styles/scripts loading forever
+  ["wikimedia.org", "uv"],
+  ["spotify.com", "uv"], // Scramjet: "Something went wrong"
+  ["claude.ai", "sj"], // Ultraviolet: blank page
+  ["anthropic.com", "sj"],
+];
+
+function siteEngine(url) {
+  const host = hostOf(url);
+  const saved = (store("siteEngines") || {})[host];
+  if (saved) return saved;
+  const known = KNOWN_ENGINES.find(([domain]) => host === domain || host.endsWith("." + domain));
+  return known ? known[1] : undefined;
+}
+function setSiteEngine(url, engine) {
+  const map = store("siteEngines") || {};
+  map[hostOf(url)] = engine;
+  store("siteEngines", map);
+}
+
+async function navigate(tab, url, opts = {}) {
   if (!url) return;
   await engineReady;
-  let engine = engineOk ? settings.mode : "classic";
+  let engine = engineOk ? opts.engine || siteEngine(url) || settings.mode : "classic";
   if (engine === "uv") {
     try {
       await setupUV();
@@ -915,7 +964,10 @@ async function navigate(tab, url) {
       engine = "sj";
     }
   }
-  if (!/duckduckgo\.com/.test(url)) tab.googleFallback = false;
+  if (!url.startsWith(BING)) tab.searchFallback = false;
+  tab.engine = engine;
+  tab.retried = !!opts.retry;
+  tab.watchDoc = null;
   tab.url = url;
   tab.title = hostOf(url);
   tab.loading = true;
@@ -963,28 +1015,58 @@ function onLoad(tab) {
   renderTabs();
 }
 
-// Google often answers searches from data-center servers (like this proxy) with
-// an "unusual traffic" page. When that happens, run the same search on DuckDuckGo.
-function googleBlocked(tab, url) {
-  const m = /^https?:\/\/(www\.)?google\.[a-z.]+\/sorry\//i.test(url);
-  if (!m || tab.googleFallback) return false;
-  let q = "";
+function searchBlocked(tab, url) {
+  if (tab.searchFallback || !BLOCK_PAGES.some((re) => re.test(url))) return false;
+  let q = lastQuery;
   try {
-    const cont = new URL(url).searchParams.get("continue") || "";
-    q = new URL(cont).searchParams.get("q") || "";
+    const cont = new URL(url).searchParams.get("continue");
+    if (cont) q = new URL(cont).searchParams.get("q") || q;
   } catch (e) {}
-  tab.googleFallback = true;
-  toast("Google blocked this server, so this search used DuckDuckGo");
-  navigate(tab, q ? "https://duckduckgo.com/?q=" + encodeURIComponent(q) : "https://duckduckgo.com/");
+  try {
+    sessionStorage.setItem("blocked:" + new URL(settings.engine).hostname, String(Date.now() + 30 * 60 * 1000));
+  } catch (e) {}
+  tab.searchFallback = true;
+  toast("That search engine blocked this server, so Bing was used instead");
+  navigate(tab, q ? BING + encodeURIComponent(q) : "https://www.bing.com/");
+  return true;
+}
+
+// If a site shows the engine's error page, or still hasn't finished loading
+// after 12 seconds, try it once with the other engine and remember the choice.
+function engineTrouble(tab) {
+  if (tab.retried || !tab.url || (tab.engine !== "sj" && tab.engine !== "uv")) return false;
+  let doc;
+  try {
+    doc = tab.frame.contentDocument;
+  } catch (e) {
+    return false;
+  }
+  if (!doc || !doc.location || doc.location.href === "about:blank") return false;
+  if (doc !== tab.watchDoc) {
+    tab.watchDoc = doc; // a new page started: start its timer
+    tab.watchStart = Date.now();
+  }
+  const title = doc.title || "";
+  const text = doc.body ? doc.body.innerText.slice(0, 300) : "";
+  const errorPage =
+    (title === "Scramjet" && /There was an error loading/i.test(text)) ||
+    (title === "Error" && /Error processing your request/i.test(text));
+  const stalled = doc.readyState !== "complete" && Date.now() - tab.watchStart > 12000;
+  if (!errorPage && !stalled) return false;
+  const other = tab.engine === "sj" ? "uv" : "sj";
+  setSiteEngine(tab.url, other);
+  toast(`This site works better with ${other === "uv" ? "Ultraviolet" : "Scramjet"}, so it switched automatically`);
+  navigate(tab, tab.url, { engine: other, retry: true });
   return true;
 }
 
 function syncTab(tab) {
   let changed = false;
+  if (engineTrouble(tab)) return false;
   try {
     const win = tab.frame.contentWindow;
     const url = realUrl(win.location);
-    if (url && googleBlocked(tab, url)) return false;
+    if (url && searchBlocked(tab, url)) return false;
     if (url && url !== tab.url) {
       tab.url = url;
       changed = true;
@@ -1251,6 +1333,7 @@ $("modeSeg").addEventListener("click", (e) => {
   if (!v) return;
   settings.mode = v;
   saveSettings();
+  store("siteEngines", {}); // a manual choice resets the per-site automatic picks
   renderSettings();
   if (v === "uv" && engineOk) setupUV().catch(() => {});
   toast("Engine change applies to pages you open next");

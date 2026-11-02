@@ -268,6 +268,10 @@ const ASSETS = {
     JS,
     fs.readFileSync(path.join(__dirname, "static", "swcache.js")),
   ],
+  "/pagefix.js": [
+    JS,
+    fs.readFileSync(path.join(__dirname, "static", "pagefix.js")),
+  ],
   "/proxy/client/unblocker-client.js": [
     JS,
     fs.readFileSync(
@@ -318,6 +322,7 @@ const NO_CACHE = new Set([
   "/sw.js",
   "/uv/sw.js",
   "/swcache.js",
+  "/pagefix.js",
   "/manifest.webmanifest",
 ]);
 
