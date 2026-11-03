@@ -692,7 +692,7 @@ function toast(msg) {
   t.textContent = msg;
   t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.hidden = true), 3500);
+  toastTimer = setTimeout(() => (t.hidden = true), Math.max(3500, msg.length * 55));
 }
 
 // older versions stored "uv"/"classic"; Scramjet is the new default
@@ -945,14 +945,18 @@ const KNOWN_ENGINES = [
   ["anthropic.com", "sj"],
 ];
 
-function siteEngine(url) {
+function knownEngine(url) {
   const host = hostOf(url);
-  const saved = (store("siteEngines") || {})[host];
-  if (saved) return saved;
   const known = KNOWN_ENGINES.find(([domain]) => host === domain || host.endsWith("." + domain));
   return known ? known[1] : undefined;
 }
+// Known sites always use the engine measured to work: an automatic switch
+// (e.g. after a slow bot check) used to save the broken engine for good.
+function siteEngine(url) {
+  return knownEngine(url) || (store("siteEngines") || {})[hostOf(url)];
+}
 function setSiteEngine(url, engine) {
+  if (knownEngine(url)) return;
   const map = store("siteEngines") || {};
   map[hostOf(url)] = engine;
   store("siteEngines", map);
@@ -1038,6 +1042,10 @@ function searchBlocked(tab, url) {
 
 // If a site shows the engine's error page, or still hasn't finished loading
 // after 12 seconds, try it once with the other engine and remember the choice.
+// Pages shown when a site's security (Cloudflare, Akamai, Reddit...) blocks
+// or challenges the proxy server.
+const BOT_CHECK = /^Just a moment|Attention Required! \| Cloudflare|Performing security verification|Verify you are human|Checking your browser|blocked by network security|^Access Denied\n/i;
+
 function engineTrouble(tab) {
   if (tab.retried || !tab.url || (tab.engine !== "sj" && tab.engine !== "uv")) return false;
   let doc;
@@ -1053,6 +1061,15 @@ function engineTrouble(tab) {
   }
   const title = doc.title || "";
   const text = doc.body ? doc.body.innerText.slice(0, 300) : "";
+  if (BOT_CHECK.test(title + "\n" + text)) {
+    // The site's security service is blocking or checking this server.
+    // Another engine can't fix that, so don't switch; say what's going on.
+    if (tab.botWarned !== hostOf(tab.url)) {
+      tab.botWarned = hostOf(tab.url); // once per site: the check changes the address as it runs
+      toast(`${hostOf(tab.url)} is running a bot check on this server. If it doesn't pass in a few seconds, the site is blocking the proxy (not a Slipstream bug)`);
+    }
+    return false;
+  }
   const errorPage =
     (title === "Scramjet" && /There was an error loading/i.test(text)) ||
     (title === "Error" && /Error processing your request/i.test(text));
