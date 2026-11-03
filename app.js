@@ -382,6 +382,22 @@ app.disable("x-powered-by");
 // Bare server requests go first, before anything else touches them.
 app.use((req, res, next) => {
   if (bare.shouldRoute(req)) {
+    // The bare server passes each site's Cache-Control through, but the
+    // browser (and Vercel's CDN) store the answer under one address per site
+    // URL, ignoring the visitor's cookies, the site's "Vary" header and
+    // fetch(..., { cache: "no-store" }). So after logging in, sites got the
+    // saved logged-out answer back and acted as if you weren't signed in.
+    // Static files are still cached by the service worker (swcache.js).
+    const writeHead = res.writeHead;
+    res.writeHead = function (status, ...rest) {
+      const headers = rest.find((h) => h && typeof h === "object");
+      if (headers) {
+        delete headers["cache-control"];
+        delete headers.etag;
+        headers["cache-control"] = "no-store";
+      }
+      return writeHead.call(this, status, ...rest);
+    };
     bare.routeRequest(req, res);
   } else {
     next();
